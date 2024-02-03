@@ -6,8 +6,6 @@ DEFAULT_STYLE_WEIGHT: float = 5.0
 
 class Languages(str, enum.Enum):
     JP = "JP"
-    EN = "EN"
-    ZH = "ZH"
 
 
 DEFAULT_SDP_RATIO: float = 0.2

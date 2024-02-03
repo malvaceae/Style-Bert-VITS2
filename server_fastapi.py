@@ -5,16 +5,14 @@ import argparse
 import os
 import sys
 from io import BytesIO
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 from urllib.parse import unquote
 
-import GPUtil
-import psutil
 import torch
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, Request, status
+from fastapi import Body, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from scipy.io import wavfile
 
 from common.constants import (
@@ -100,47 +98,47 @@ if __name__ == "__main__":
         )
     app.logger = logger
 
-    @app.get("/voice", response_class=AudioResponse)
-    async def voice(
+    @app.post("/invocations", response_class=AudioResponse)
+    async def invocations(
         request: Request,
-        text: str = Query(..., min_length=1, max_length=limit, description=f"セリフ"),
-        encoding: str = Query(None, description="textをURLデコードする(ex, `utf-8`)"),
-        model_id: int = Query(0, description="モデルID。`GET /models/info`のkeyの値を指定ください"),
-        speaker_name: str = Query(
+        text: str = Body(..., min_length=1, max_length=limit, description=f"セリフ"),
+        encoding: str = Body(None, description="textをURLデコードする(ex, `utf-8`)"),
+        model_id: int = Body(0, description="モデルID。`GET /models/info`のkeyの値を指定ください"),
+        speaker_name: str = Body(
             None, description="話者名(speaker_idより優先)。esd.listの2列目の文字列を指定"
         ),
-        speaker_id: int = Query(
+        speaker_id: int = Body(
             0, description="話者ID。model_assets>[model]>config.json内のspk2idを確認"
         ),
-        sdp_ratio: float = Query(
+        sdp_ratio: float = Body(
             DEFAULT_SDP_RATIO,
             description="SDP(Stochastic Duration Predictor)/DP混合比。比率が高くなるほどトーンのばらつきが大きくなる",
         ),
-        noise: float = Query(DEFAULT_NOISE, description="サンプルノイズの割合。大きくするほどランダム性が高まる"),
-        noisew: float = Query(
+        noise: float = Body(DEFAULT_NOISE, description="サンプルノイズの割合。大きくするほどランダム性が高まる"),
+        noisew: float = Body(
             DEFAULT_NOISEW, description="SDPノイズ。大きくするほど発音の間隔にばらつきが出やすくなる"
         ),
-        length: float = Query(
+        length: float = Body(
             DEFAULT_LENGTH, description="話速。基準は1で大きくするほど音声は長くなり読み上げが遅まる"
         ),
-        language: Languages = Query(ln, description=f"textの言語"),
-        auto_split: bool = Query(DEFAULT_LINE_SPLIT, description="改行で分けて生成"),
-        split_interval: float = Query(
+        language: Languages = Body(ln, description=f"textの言語"),
+        auto_split: bool = Body(DEFAULT_LINE_SPLIT, description="改行で分けて生成"),
+        split_interval: float = Body(
             DEFAULT_SPLIT_INTERVAL, description="分けた場合に挟む無音の長さ（秒）"
         ),
-        assist_text: Optional[str] = Query(
+        assist_text: Optional[str] = Body(
             None, description="このテキストの読み上げと似た声音・感情になりやすくなる。ただし抑揚やテンポ等が犠牲になる傾向がある"
         ),
-        assist_text_weight: float = Query(
+        assist_text_weight: float = Body(
             DEFAULT_ASSIST_TEXT_WEIGHT, description="assist_textの強さ"
         ),
-        style: Optional[Union[int, str]] = Query(DEFAULT_STYLE, description="スタイル"),
-        style_weight: float = Query(DEFAULT_STYLE_WEIGHT, description="スタイルの強さ"),
-        reference_audio_path: Optional[str] = Query(None, description="スタイルを音声ファイルで行う"),
+        style: Optional[Union[int, str]] = Body(DEFAULT_STYLE, description="スタイル"),
+        style_weight: float = Body(DEFAULT_STYLE_WEIGHT, description="スタイルの強さ"),
+        reference_audio_path: Optional[str] = Body(None, description="スタイルを音声ファイルで行う"),
     ):
         """Infer text to speech(テキストから感情付き音声を生成する)"""
         logger.info(
-            f"{request.client.host}:{request.client.port}/voice  { unquote(str(request.query_params) )}"
+            f"{request.client.host}:{request.client.port}/invocations  { unquote(str(await request.json()) )}"
         )
         if model_id >= len(model_holder.models):  # /models/refresh があるためQuery(le)で表現不可
             raise_validation_error(f"model_id={model_id} not found", "model_id")
@@ -183,78 +181,9 @@ if __name__ == "__main__":
             wavfile.write(wavContent, sr, audio)
             return Response(content=wavContent.getvalue(), media_type="audio/wav")
 
-    @app.get("/models/info")
-    def get_loaded_models_info():
-        """ロードされたモデル情報の取得"""
-
-        result: Dict[str, Dict] = dict()
-        for model_id, model in enumerate(model_holder.models):
-            result[str(model_id)] = {
-                "config_path": model.config_path,
-                "model_path": model.model_path,
-                "device": model.device,
-                "spk2id": model.spk2id,
-                "id2spk": model.id2spk,
-                "style2id": model.style2id,
-            }
-        return result
-
-    @app.post("/models/refresh")
-    def refresh():
-        """モデルをパスに追加/削除した際などに読み込ませる"""
-        model_holder.refresh()
-        load_models(model_holder)
-        return get_loaded_models_info()
-
-    @app.get("/status")
-    def get_status():
-        """実行環境のステータスを取得"""
-        cpu_percent = psutil.cpu_percent(interval=1)
-        memory_info = psutil.virtual_memory()
-        memory_total = memory_info.total
-        memory_available = memory_info.available
-        memory_used = memory_info.used
-        memory_percent = memory_info.percent
-        gpuInfo = []
-        devices = ["cpu"]
-        for i in range(torch.cuda.device_count()):
-            devices.append(f"cuda:{i}")
-        gpus = GPUtil.getGPUs()
-        for gpu in gpus:
-            gpuInfo.append(
-                {
-                    "gpu_id": gpu.id,
-                    "gpu_load": gpu.load,
-                    "gpu_memory": {
-                        "total": gpu.memoryTotal,
-                        "used": gpu.memoryUsed,
-                        "free": gpu.memoryFree,
-                    },
-                }
-            )
-        return {
-            "devices": devices,
-            "cpu_percent": cpu_percent,
-            "memory_total": memory_total,
-            "memory_available": memory_available,
-            "memory_used": memory_used,
-            "memory_percent": memory_percent,
-            "gpu": gpuInfo,
-        }
-
-    @app.get("/tools/get_audio", response_class=AudioResponse)
-    def get_audio(
-        request: Request, path: str = Query(..., description="local wav path")
-    ):
-        """wavデータを取得する"""
-        logger.info(
-            f"{request.client.host}:{request.client.port}/tools/get_audio  { unquote(str(request.query_params) )}"
-        )
-        if not os.path.isfile(path):
-            raise_validation_error(f"path={path} not found", "path")
-        if not path.lower().endswith(".wav"):
-            raise_validation_error(f"wav file not found in {path}", "path")
-        return FileResponse(path=path, media_type="audio/wav")
+    @app.get("/ping")
+    def ping():
+        return Response()
 
     logger.info(f"server listen: http://127.0.0.1:{config.server_config.port}")
     logger.info(f"API docs: http://127.0.0.1:{config.server_config.port}/docs")
