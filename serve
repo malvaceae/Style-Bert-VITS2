@@ -10,7 +10,7 @@ if __name__ == '__main__':
     for path in pathlib.Path(MODEL_DIR).glob('**/[!.]*'):
         if path.is_dir():
             path.relative_to(MODEL_DIR).mkdir(exist_ok=True)
-        else:
+        elif not path.relative_to(MODEL_DIR).is_symlink():
             path.relative_to(MODEL_DIR).symlink_to(path)
 
     subprocess.run([sys.executable, 'server_fastapi.py'])
