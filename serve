@@ -4,6 +4,8 @@ import pathlib
 import subprocess
 import sys
 
+import initialize
+
 MODEL_DIR = '/opt/ml/model'
 
 if __name__ == '__main__':
@@ -13,4 +15,5 @@ if __name__ == '__main__':
         elif not path.relative_to(MODEL_DIR).is_symlink():
             path.relative_to(MODEL_DIR).symlink_to(path)
 
+    initialize.download_bert_models()
     subprocess.run([sys.executable, 'server_fastapi.py'])

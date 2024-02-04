@@ -87,14 +87,3 @@ def download_jvnv_models():
                 local_dir="model_assets",
                 local_dir_use_symlinks=False,
             )
-
-
-download_bert_models()
-
-download_slm_model()
-
-download_pretrained_models()
-
-download_jp_extra_pretrained_models()
-
-download_jvnv_models()
