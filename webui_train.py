@@ -2,16 +2,24 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
+import socket
+import sys
+import time
+import webbrowser
 from datetime import datetime
 from multiprocessing import cpu_count
 
 import gradio as gr
 import yaml
 
+from common.constants import LATEST_VERSION
 from common.log import logger
+from common.stdout_wrapper import SAFE_STDOUT
 from common.subprocess_utils import run_script_with_log, second_elem_of
 
 logger_handler = None
+tensorboard_executed = False
 
 # Get path settings
 with open(os.path.join("configs", "paths.yml"), "r", encoding="utf-8") as f:
@@ -288,7 +296,7 @@ def preprocess_all(
     )
 
 
-def train(model_name, skip_style=False, use_jp_extra=True):
+def train(model_name, skip_style=False, use_jp_extra=True, speedup=False):
     dataset_path, _, _, _, config_path = get_path(model_name)
     # 学習再開の場合は念のためconfig.ymlの名前等を更新
     with open("config.yml", "r", encoding="utf-8") as f:
@@ -302,6 +310,8 @@ def train(model_name, skip_style=False, use_jp_extra=True):
     cmd = [train_py, "--config", config_path, "--model", dataset_path]
     if skip_style:
         cmd.append("--skip_default_style")
+    if speedup:
+        cmd.append("--speedup")
     success, message = run_script_with_log(cmd, ignore_warning=True)
     if not success:
         logger.error(f"Train failed.")
@@ -313,8 +323,48 @@ def train(model_name, skip_style=False, use_jp_extra=True):
     return True, "Success: 学習が完了しました"
 
 
-initial_md = """
-# Style-Bert-VITS2 ver 2.0 学習用WebUI
+def wait_for_tensorboard(port=6006, timeout=10):
+    start_time = time.time()
+    while True:
+        try:
+            with socket.create_connection(("localhost", port), timeout=1):
+                return True  # ポートが開いている場合
+        except OSError:
+            pass  # ポートがまだ開いていない場合
+
+        if time.time() - start_time > timeout:
+            return False  # タイムアウト
+
+        time.sleep(0.1)
+
+
+def run_tensorboard(model_name):
+    global tensorboard_executed
+    if not tensorboard_executed:
+        python = sys.executable
+        tensorboard_cmd = [
+            python,
+            "-m",
+            "tensorboard.main",
+            "--logdir",
+            f"Data/{model_name}/models",
+        ]
+        subprocess.Popen(
+            tensorboard_cmd,
+            stdout=SAFE_STDOUT,  # type: ignore
+            stderr=SAFE_STDOUT,  # type: ignore
+        )
+        yield gr.Button("起動中…")
+        if wait_for_tensorboard():
+            tensorboard_executed = True
+        else:
+            logger.error("Tensorboard did not start in the expected time.")
+    webbrowser.open("http://localhost:6006")
+    yield gr.Button("Tensorboardを開く")
+
+
+initial_md = f"""
+# Style-Bert-VITS2 ver {LATEST_VERSION} 学習用WebUI
 
 ## 使い方
 
@@ -366,7 +416,7 @@ english_teacher.wav|Mary|EN|How are you? I'm fine, thank you, and you?
 """
 
 if __name__ == "__main__":
-    with gr.Blocks(theme="NoCrypt/miku") as app:
+    with gr.Blocks(theme="NoCrypt/miku").queue() as app:
         gr.Markdown(initial_md)
         with gr.Accordion(label="データの前準備", open=False):
             gr.Markdown(prepare_md)
@@ -401,11 +451,6 @@ if __name__ == "__main__":
                     maximum=10000,
                     step=100,
                 )
-                bf16_run = gr.Checkbox(
-                    label="bfloat16を使う",
-                    info="bfloat16を使うかどうか。新しめのグラボだと学習が早くなるかも、古いグラボだと動かないかも。",
-                    value=True,
-                )
                 normalize = gr.Checkbox(
                     label="音声の音量を正規化する(音量の大小が揃っていない場合など)",
                     value=False,
@@ -415,9 +460,14 @@ if __name__ == "__main__":
                     value=False,
                 )
                 with gr.Accordion("詳細設定", open=False):
+                    bf16_run = gr.Checkbox(
+                        label="bfloat16を使う",
+                        info="bfloat16を使うかどうか。オンにすると学習が発散する可能性がありますが、メモリ使用量が減る可能性があります。",
+                        value=False,
+                    )
                     num_processes = gr.Slider(
                         label="プロセス数",
-                        info="前処理時の並列処理プロセス数、大きすぎるとフリーズするかも",
+                        info="前処理時の並列処理プロセス数、前処理でフリーズしたら下げてください",
                         value=cpu_count() // 2,
                         minimum=1,
                         maximum=cpu_count(),
@@ -477,7 +527,7 @@ if __name__ == "__main__":
                     )
                     bf16_run_manual = gr.Checkbox(
                         label="bfloat16を使う",
-                        value=True,
+                        value=False,
                     )
                     freeze_EN_bert_manual = gr.Checkbox(
                         label="英語bert部分を凍結",
@@ -545,7 +595,7 @@ if __name__ == "__main__":
                     style_gen_btn = gr.Button(value="実行", variant="primary")
                     info_style = gr.Textbox(label="状況")
         gr.Markdown("## 学習")
-        with gr.Row(variant="panel"):
+        with gr.Row():
             skip_style = gr.Checkbox(
                 label="スタイルファイルの生成をスキップする",
                 info="学習再開の場合の場合はチェックしてください",
@@ -555,8 +605,14 @@ if __name__ == "__main__":
                 label="JP-Extra版を使う",
                 value=True,
             )
+            speedup = gr.Checkbox(
+                label="ログ等をスキップして学習を高速化する",
+                value=False,
+                visible=False,  # Experimental
+            )
             train_btn = gr.Button(value="学習を開始する", variant="primary")
-            info_train = gr.Textbox(label="状況")
+            tensorboard_btn = gr.Button(value="Tensorboardを開く")
+        info_train = gr.Textbox(label="状況")
 
         preprocess_button.click(
             second_elem_of(preprocess_all),
@@ -624,9 +680,13 @@ if __name__ == "__main__":
         # Train
         train_btn.click(
             second_elem_of(train),
-            inputs=[model_name, skip_style, use_jp_extra_train],
+            inputs=[model_name, skip_style, use_jp_extra_train, speedup],
             outputs=[info_train],
         )
+        tensorboard_btn.click(
+            run_tensorboard, inputs=[model_name], outputs=[tensorboard_btn]
+        )
+
         use_jp_extra.change(
             lambda x: gr.Checkbox(value=x),
             inputs=[use_jp_extra],

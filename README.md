@@ -1,34 +1,24 @@
-# 2024-02-03: JP-Extra対応版 ver 2.0をリリースしました！
-
-[**リリースページ**](https://github.com/litagin02/Style-Bert-VITS2/releases/tag/2.0)
-
-モデルとして [Bert-VITS2 JP-Extra](https://github.com/fishaudio/Bert-VITS2/releases/tag/JP-Exta) を元としたものが使えるようになりました。日本語の発音やアクセントや自然性が大幅に向上する傾向があります。
-
-[**Changelog**](docs/CHANGELOG.md)
-
-- 2024-02-05: ver 2.0.1
-- 2024-02-03: ver 2.0
-- 2024-01-09: ver 1.3
-- 2023-12-31: ver 1.2
-- 2023-12-29: ver 1.1
-- 2023-12-27: ver 1.0
-
 # Style-Bert-VITS2
 
 Bert-VITS2 with more controllable voice styles.
 
-[English README](docs/README_en.md)
+https://github.com/litagin02/Style-Bert-VITS2/assets/139731664/e853f9a2-db4a-4202-a1dd-56ded3c562a0
 
-https://github.com/litagin02/Style-Bert-VITS2/assets/139731664/b907c1b8-43aa-46e6-b03f-f6362f5a5a1e
+- [English README](docs/README_en.md)
+- [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/litagin02/Style-Bert-VITS2/blob/master/colab.ipynb)
+- [🤗 オンラインデモはこちらから](https://huggingface.co/spaces/litagin/Style-Bert-VITS2-JVNV)
+- [Zennの解説記事](https://zenn.dev/litagin/articles/034819a5256ff4)
 
-**注意**: 上記動画のライセンス表記は誤っていました、正しくはCC BY-SA 4.0で商用利用に制限はありません。近日訂正版動画に差し替えます。
+- [**リリースページ**](https://github.com/litagin02/Style-Bert-VITS2/releases/)、[更新履歴](docs/CHANGELOG.md)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/litagin02/Style-Bert-VITS2/blob/master/colab.ipynb)
-
-Online demo: https://huggingface.co/spaces/litagin/Style-Bert-VITS2-JVNV
+  - 2024-02-07: ver 2.1
+  - 2024-02-03: ver 2.0
+  - 2024-01-09: ver 1.3
+  - 2023-12-31: ver 1.2
+  - 2023-12-29: ver 1.1
+  - 2023-12-27: ver 1.0
 
 This repository is based on [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2) v2.1 and Japanese-Extra, so many thanks to the original author!
-
 
 **概要**
 
@@ -36,7 +26,7 @@ This repository is based on [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2
 - GitやPythonがない人でも（Windowsユーザーなら）簡単にインストールでき、学習もできます (多くを[EasyBertVits2](https://github.com/Zuntan03/EasyBertVits2/)からお借りしました)。またGoogle Colabでの学習もサポートしています: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/litagin02/Style-Bert-VITS2/blob/master/colab.ipynb)
 - 音声合成のみに使う場合は、グラボがなくてもCPUで動作します。
 - 他との連携に使えるAPIサーバーも同梱しています ([@darai0512](https://github.com/darai0512) 様によるPRです、ありがとうございます)。
-- 元々が「楽しそうな文章は楽しそうに、悲しそうな文章は悲しそうに」読むのがBert-VITS2の強みですので、このフォークで付加されたスタイル指定を無理に使わずとも感情豊かな音声を生成することができます。
+- 元々「楽しそうな文章は楽しそうに、悲しそうな文章は悲しそうに」読むのがBert-VITS2の強みですので、スタイル指定がデフォルトでも感情豊かな音声を生成することができます。
 
 
 ## 使い方
@@ -45,7 +35,7 @@ This repository is based on [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2
 
 ### 動作環境
 
-各UIとAPI Serverにおいて、Windows コマンドプロンプト・WSL2・Linux(Ubuntu Desktop)での動作を確認しています(WSLでのパス指定は相対パスなど工夫ください)。
+各UIとAPI Serverにおいて、Windows コマンドプロンプト・WSL2・Linux(Ubuntu Desktop)での動作を確認しています(WSLでのパス指定は相対パスなど工夫ください)。NVidiaのGPUが無い場合は学習はできませんが音声合成とマージは可能です。
 
 ### インストール
 
@@ -53,13 +43,13 @@ This repository is based on [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2
 
 Windowsを前提としています。
 
-1. [このzipファイル](https://github.com/litagin02/Style-Bert-VITS2/releases/download/2.0.1/Style-Bert-VITS2.zip)を**パスに日本語や空白が含まれない場所に**ダウンロードして展開します。
+1. [このzipファイル](https://github.com/litagin02/Style-Bert-VITS2/releases/download/2.1/Style-Bert-VITS2.zip)を**パスに日本語や空白が含まれない場所に**ダウンロードして展開します。
   - グラボがある方は、`Install-Style-Bert-VITS2.bat`をダブルクリックします。
-  - グラボがない方は、`Install-Style-Bert-VITS2-CPU.bat`をダブルクリックします。
+  - グラボがない方は、`Install-Style-Bert-VITS2-CPU.bat`をダブルクリックします。CPU版では学習はできませんが、音声合成とマージは可能です。
 2. 待つと自動で必要な環境がインストールされます。
 3. その後、自動的に音声合成するためのWebUIが起動したらインストール成功です。デフォルトのモデルがダウンロードされるているので、そのまま遊ぶことができます。
 
-またアップデートをしたい場合は、`Update-Style-Bert-VITS2.bat`をダブルクリックしてください。
+またアップデートをしたい場合は、`Update-Style-Bert-VITS2.bat`をダブルクリックしてください。ただし**1.x**から**2.x**へアップデートする場合は、[このbatファイル](https://github.com/litagin02/Style-Bert-VITS2/releases/download/2.1/Update-to-JP-Extra.bat)を`Style-Bert-VITS2`フォルダがあるフォルダ（`Update-Style-Bert-VITS2.bat`等があるフォルダ）へ保存してからダブルクリックしてください。
 
 #### GitやPython使える人
 
@@ -128,12 +118,12 @@ model_assets
 構築した環境下で`python server_fastapi.py`するとAPIサーバーが起動します。
 API仕様は起動後に`/docs`にて確認ください。
 
-デフォルトではCORS設定を全てのドメインで許可しています。
-できる限り、`config.yml`の`server.origins`の値を変更し、信頼できるドメインに制限ください(キーを消せばCORS設定を無効にできます)。
+- 入力文字数はデフォルトで100文字が上限となっています。これは`config.yml`の`server.limit`で変更できます。
+- デフォルトではCORS設定を全てのドメインで許可しています。できる限り、`config.yml`の`server.origins`の値を変更し、信頼できるドメインに制限ください(キーを消せばCORS設定を無効にできます)。
 
 ### マージ
 
-2つのモデルを、「声音」「感情表現」「テンポ」の3点で混ぜ合わせて、新しいモデルを作ることが出来ます。
+2つのモデルを、「声質」「声の高さ」「感情表現」「テンポ」の4点で混ぜ合わせて、新しいモデルを作ることが出来ます。
 `Merge.bat`をダブルクリックか`python webui_merge.py`するとWebUIが起動します。
 
 ### 自然性評価
@@ -152,7 +142,7 @@ python speech_mos.py -m <model_name>
 
 - [EasyBertVits2](https://github.com/Zuntan03/EasyBertVits2)のように、PythonやGitを知らない人でも簡単に使える。
 - 感情埋め込みのモデルを変更（256次元の[wespeaker-voxceleb-resnet34-LM](https://huggingface.co/pyannote/wespeaker-voxceleb-resnet34-LM)へ、感情埋め込みというよりは話者識別のための埋め込み）
-- 埋め込みもベクトル量子化を取り払い、単なる全結合層に。
+- 感情埋め込みもベクトル量子化を取り払い、単なる全結合層に。
 - スタイルベクトルファイル`style_vectors.npy`を作ることで、そのスタイルを使って効果の強さも連続的に指定しつつ音声を生成することができる。
 - 各種WebUIを作成
 - bf16での学習のサポート
@@ -160,15 +150,12 @@ python speech_mos.py -m <model_name>
 - その他軽微なbugfixやリファクタリング
 
 ## TODO
-- [ ] デフォルトのJVNVモデルにJP-Extra版のものを追加
+- [x] デフォルトのJVNVモデルにJP-Extra版のものを追加
 - [x] LinuxやWSL等、Windowsの通常環境以外でのサポート ← おそらく問題ないとの報告あり
 - [x] 複数話者学習での音声合成対応（学習は現在でも可能）
-- [ ] 本家のver 2.1, 2.2, 2.3モデルの推論対応？（ver 2.1以外は明らかにめんどいのでたぶんやらない）
 - [x] `server_fastapi.py`の対応、とくにAPIで使えるようになると嬉しい人が増えるのかもしれない
 - [x] モデルのマージで声音と感情表現を混ぜる機能の実装
 - [ ] 英語等多言語対応？
-- [ ] ONNX対応
-
 
 ## References
 In addition to the original reference (written below), I used the following repositories:
