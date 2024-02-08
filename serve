@@ -6,15 +6,15 @@ import sys
 
 from initialize import download_bert_models
 
-MODEL_DIR = '/opt/ml/model'
+MODEL_DIR = "/opt/ml/model"
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     download_bert_models()
 
-    for path in pathlib.Path(MODEL_DIR).rglob('*'):
+    for path in pathlib.Path(MODEL_DIR).rglob("*"):
         if path.is_dir():
             path.relative_to(MODEL_DIR).mkdir(exist_ok=True)
         elif not path.relative_to(MODEL_DIR).is_symlink():
             path.relative_to(MODEL_DIR).symlink_to(path)
 
-    subprocess.run([sys.executable, 'server_fastapi.py'])
+    subprocess.run([sys.executable, "server_fastapi.py"])
