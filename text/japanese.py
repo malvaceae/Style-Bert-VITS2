@@ -59,8 +59,22 @@ rep_map = {
     "】": "'",
     "[": "'",
     "]": "'",
-    "—": "-",
-    "−": "-",
+    # NFKC正規化後のハイフン・ダッシュの変種を全て通常半角ハイフン - \u002d に変換
+    "\u02d7": "\u002d",  # ˗, Modifier Letter Minus Sign
+    "\u2010": "\u002d",  # ‐, Hyphen,
+    # "\u2011": "\u002d",  # ‑, Non-Breaking Hyphen, NFKCにより\u2010に変換される
+    "\u2012": "\u002d",  # ‒, Figure Dash
+    "\u2013": "\u002d",  # –, En Dash
+    "\u2014": "\u002d",  # —, Em Dash
+    "\u2015": "\u002d",  # ―, Horizontal Bar
+    "\u2043": "\u002d",  # ⁃, Hyphen Bullet
+    "\u2212": "\u002d",  # −, Minus Sign
+    "\u23af": "\u002d",  # ⎯, Horizontal Line Extension
+    "\u23e4": "\u002d",  # ⏤, Straightness
+    "\u2500": "\u002d",  # ─, Box Drawings Light Horizontal
+    "\u2501": "\u002d",  # ━, Box Drawings Heavy Horizontal
+    "\u2e3a": "\u002d",  # ⸺, Two-Em Dash
+    "\u2e3b": "\u002d",  # ⸻, Three-Em Dash
     # "～": "-",  # これは長音記号「ー」として扱うよう変更
     # "~": "-",  # これも長音記号「ー」として扱うよう変更
     "「": "'",
@@ -336,7 +350,8 @@ def text2sep_kata(norm_text: str) -> tuple[list[str], list[str]]:
             （カタカナからなり、長音記号も含みうる、`アー` 等）
         - `word`が`ー` から始まる → `ーラー` や `ーーー` など
         - `word`が句読点や空白等 → `、`
-        - `word`が`?` → `？`（全角になる）
+        - `word`がpunctuationの繰り返し → 全角にしたもの
+        基本的にpunctuationは1文字ずつ分かれるが、何故かある程度連続すると1つにまとまる。
         他にも`word`が読めないキリル文字アラビア文字等が来ると`、`になるが、正規化でこの場合は起きないはず。
         また元のコードでは`yomi`が空白の場合の処理があったが、これは起きないはず。
         処理すべきは`yomi`が`、`の場合のみのはず。
@@ -344,14 +359,7 @@ def text2sep_kata(norm_text: str) -> tuple[list[str], list[str]]:
         assert yomi != "", f"Empty yomi: {word}"
         if yomi == "、":
             # wordは正規化されているので、`.`, `,`, `!`, `'`, `-`, `--` のいずれか
-            if word not in (
-                ".",
-                ",",
-                "!",
-                "'",
-                "-",
-                "--",
-            ):
+            if not set(word).issubset(set(punctuation)):  # 記号繰り返しか判定
                 # ここはpyopenjtalkが読めない文字等のときに起こる
                 raise ValueError(f"Cannot read: {word} in:\n{norm_text}")
             # yomiは元の記号のままに変更
@@ -556,17 +564,16 @@ def kata2phoneme_list(text: str) -> list[str]:
     """
     原則カタカナの`text`を受け取り、それをそのままいじらずに音素記号のリストに変換。
     注意点：
-    - punctuationが来た場合（punctuationが1文字の場合がありうる）、処理せず1文字のリストを返す
+    - punctuationかその繰り返しが来た場合、punctuationたちをそのままリストにして返す。
     - 冒頭に続く「ー」はそのまま「ー」のままにする（`handle_long()`で処理される）
     - 文中の「ー」は前の音素記号の最後の音素記号に変換される。
     例：
     `ーーソーナノカーー` → ["ー", "ー", "s", "o", "o", "n", "a", "n", "o", "k", "a", "a", "a"]
     `?` → ["?"]
+    `!?!?!?!?!` → ["!", "?", "!", "?", "!", "?", "!", "?", "!"]
     """
-    if text in punctuation:
-        return [text]
-    elif text == "--":
-        return ["-", "-"]
+    if set(text).issubset(set(punctuation)):
+        return list(text)
     # `text`がカタカナ（`ー`含む）のみからなるかどうかをチェック
     if re.fullmatch(r"[\u30A0-\u30FF]+", text) is None:
         raise ValueError(f"Input must be katakana only: {text}")
@@ -589,12 +596,13 @@ def kata2phoneme_list(text: str) -> list[str]:
 
 
 if __name__ == "__main__":
-    tokenizer = AutoTokenizer.from_pretrained("./bert/deberta-v2-large-japanese")
-    text = "hello,こんにちは、世界ー！……"
+    tokenizer = AutoTokenizer.from_pretrained(
+        "./bert/deberta-v2-large-japanese-char-wwm"
+    )
+    text = "こんにちは、世界。"
     from text.japanese_bert import get_bert_feature
 
     text = text_normalize(text)
-    print(text)
 
     phones, tones, word2ph = g2p(text)
     bert = get_bert_feature(text, word2ph)
