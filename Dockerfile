@@ -1,10 +1,11 @@
-FROM nvidia/cuda:12.1.1-base-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 COPY requirements.txt /tmp
 
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
+        libcublas11 \
         python3.10 \
         python3-pip && \
     rm -rf /var/lib/apt/lists/* && \
