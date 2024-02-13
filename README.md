@@ -1,214 +1,192 @@
-# Style-Bert-VITS2
+# Style-Bert-VITS2 with Amazon SageMaker
 
-Bert-VITS2 with more controllable voice styles.
+[Style-Bert-VITS2](https://github.com/litagin02/Style-Bert-VITS2)を用いたモデルのトレーニングと推論を[Amazon SageMaker](https://aws.amazon.com/sagemaker/)で実行できるようにしたもの。
 
-https://github.com/litagin02/Style-Bert-VITS2/assets/139731664/e853f9a2-db4a-4202-a1dd-56ded3c562a0
+## 要件
 
-- [English README](docs/README_en.md)
-- [チュートリアル動画 YouTube](https://youtu.be/aTUSzgDl1iY)　[ニコニコ動画](https://www.nicovideo.jp/watch/sm43391524)
-- [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/litagin02/Style-Bert-VITS2/blob/master/colab.ipynb)
-- [🤗 オンラインデモはこちらから](https://huggingface.co/spaces/litagin/Style-Bert-VITS2-JVNV)
-- [Zennの解説記事](https://zenn.dev/litagin/articles/034819a5256ff4)
+以下がインストールされていること。
 
-- [**リリースページ**](https://github.com/litagin02/Style-Bert-VITS2/releases/)、[更新履歴](docs/CHANGELOG.md)
+- AWS CLI
+- Docker
 
-  - 2024-02-09: ver 2.2
-  - 2024-02-07: ver 2.1
-  - 2024-02-03: ver 2.0
-  - 2024-01-09: ver 1.3
-  - 2023-12-31: ver 1.2
-  - 2023-12-29: ver 1.1
-  - 2023-12-27: ver 1.0
+## 事前準備
 
-This repository is based on [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2) v2.1 and Japanese-Extra, so many thanks to the original author!
+### Dockerイメージ
 
-**概要**
+トレーニングと推論に用いるDockerイメージをECRリポジトリにプッシュする。
 
-- 入力されたテキストの内容をもとに感情豊かな音声を生成する[Bert-VITS2](https://github.com/fishaudio/Bert-VITS2)のv2.1とJapanese-Extraを元に、感情や発話スタイルを強弱込みで自由に制御できるようにしたものです。
-- GitやPythonがない人でも（Windowsユーザーなら）簡単にインストールでき、学習もできます (多くを[EasyBertVits2](https://github.com/Zuntan03/EasyBertVits2/)からお借りしました)。またGoogle Colabでの学習もサポートしています: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/litagin02/Style-Bert-VITS2/blob/master/colab.ipynb)
-- 音声合成のみに使う場合は、グラボがなくてもCPUで動作します。
-- 他との連携に使えるAPIサーバーも同梱しています ([@darai0512](https://github.com/darai0512) 様によるPRです、ありがとうございます)。
-- 元々「楽しそうな文章は楽しそうに、悲しそうな文章は悲しそうに」読むのがBert-VITS2の強みですので、スタイル指定がデフォルトでも感情豊かな音声を生成することができます。
+```sh
+# ECRリポジトリ名
+REPOSITORY_NAME=style-bert-vits2
 
+# アカウントID
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-## 使い方
+# リージョン (デフォルトはバージニア北部)
+AWS_REGION=$(aws configure get region)
+AWS_REGION=${AWS_REGION:-us-east-1}
 
-<!-- 詳しくは[こちら](docs/tutorial.md)を参照してください。 -->
+# Dockerイメージ名
+IMAGE_NAME="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY_NAME}:latest"
 
-### 動作環境
+# ECRリポジトリを作成
+aws ecr create-repository --region "${AWS_REGION}" --repository-name "${REPOSITORY_NAME}"
 
-各UIとAPI Serverにおいて、Windows コマンドプロンプト・WSL2・Linux(Ubuntu Desktop)での動作を確認しています(WSLでのパス指定は相対パスなど工夫ください)。NVidiaのGPUが無い場合は学習はできませんが音声合成とマージは可能です。
+# ECRレジストリにログイン
+aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
-### インストール
+# Dockerイメージをビルド (AMD64用イメージとしてビルドする必要あり)
+docker build --platform linux/amd64 -t "${IMAGE_NAME}" .
 
-#### GitやPythonに馴染みが無い方
-
-Windowsを前提としています。
-
-1. [このzipファイル](https://github.com/litagin02/Style-Bert-VITS2/releases/download/2.2/Style-Bert-VITS2.zip)を**パスに日本語や空白が含まれない場所に**ダウンロードして展開します。
-  - グラボがある方は、`Install-Style-Bert-VITS2.bat`をダブルクリックします。
-  - グラボがない方は、`Install-Style-Bert-VITS2-CPU.bat`をダブルクリックします。CPU版では学習はできませんが、音声合成とマージは可能です。
-2. 待つと自動で必要な環境がインストールされます。
-3. その後、自動的に音声合成するためのWebUIが起動したらインストール成功です。デフォルトのモデルがダウンロードされるているので、そのまま遊ぶことができます。
-
-またアップデートをしたい場合は、`Update-Style-Bert-VITS2.bat`をダブルクリックしてください。ただし**1.x**から**2.x**へアップデートする場合は、[このbatファイル](https://github.com/litagin02/Style-Bert-VITS2/releases/download/2.2/Update-to-JP-Extra.bat)を`Style-Bert-VITS2`フォルダがあるフォルダ（`Update-Style-Bert-VITS2.bat`等があるフォルダ）へ保存してからダブルクリックしてください。
-
-#### GitやPython使える人
-
-```bash
-git clone https://github.com/litagin02/Style-Bert-VITS2.git
-cd Style-Bert-VITS2
-python -m venv venv
-venv\Scripts\activate
-# PyTorch 2.2.x系は今のところは学習エラーが出るので前のバージョンを使う
-pip install torch==2.1.2 torchvision==0.16.2 torchaudio==2.1.2 --index-url https://download.pytorch.org/whl/cu118
-pip install -r requirements.txt
-python initialize.py  # 必要なモデルとデフォルトTTSモデルをダウンロード
+# DockerイメージをECRリポジトリにプッシュ
+docker push "${IMAGE_NAME}"
 ```
-最後を忘れずに。
 
-### 音声合成
+### 実行ロールとS3バケット
 
-`App.bat`をダブルクリックか、`python app.py`するとWebUIが起動します（`python app.py --cpu`でCPUモードで起動、学習中チェックに便利です）。インストール時にデフォルトのモデルがダウンロードされているので、学習していなくてもそれを使うことができます。
+SageMakerの実行ロールと、学習データやモデルを格納するためのS3バケットを作成する。  
+https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html
 
-音声合成に必要なモデルファイルたちの構造は以下の通りです（手動で配置する必要はありません）。
+## トレーニング
+
+学習に用いる音声ファイルをS3バケットに配置し、以下のコマンドを実行する。
+
+```sh
+# トレーニングジョブ名
+TRAINING_JOB_NAME=style-bert-vits2-$(date '+%Y-%m-%d-%H-%M-%S')
+
+# モデル名
+MODEL_NAME=<モデル名>
+
+# 事前準備のDockerイメージ名
+IMAGE_NAME=<Dockerイメージ名>
+
+# 実行ロールのARN
+EXECUTION_ROLE_ARN=<実行ロールのARN>
+
+# 音声ファイルを配置したS3パス
+S3_AUDIO_PATH=s3://<S3バケット名>/<音声ファイルまでのプレフィックス>
+
+# モデルファイルを格納するS3パス
+S3_MODEL_PATH=s3://<S3バケット名>/artifacts
+
+# インスタンスタイプ
+INSTANCE_TYPE=ml.g4dn.xlarge
+
+# ストレージサイズ (GB)
+VOLUME_SIZE_IN_GB=30
+
+# 最大実行時間 (秒)
+MAX_RUNTIME_IN_SECONDS=86400
+
+# JP-Extraを使うかどうか
+USE_JP_EXTRA=True
+
+# 学習のバッチサイズ
+BATCH_SIZE=4
+
+# 学習のエポック数
+EPOCHS=100
+
+# 保存頻度 (ステップ数)
+SAVE_EVERY_STEPS=1000
+
+# 音声ファイルの音量を正規化するかどうか
+NORMALIZE=False
+
+# 音声ファイルの開始・終了にある無音区間を削除するかどうか
+TRIM=False
+
+# トレーニングジョブを実行
+aws sagemaker create-training-job \
+  --training-job-name "${TRAINING_JOB_NAME}" \
+  --hyper-parameters "use_jp_extra=${USE_JP_EXTRA},batch_size=${BATCH_SIZE},epochs=${EPOCHS},save_every_steps=${SAVE_EVERY_STEPS},normalize=${NORMALIZE},trim=${TRIM}" \
+  --role-arn "${EXECUTION_ROLE_ARN}" \
+  --algorithm-specification "TrainingImage=${IMAGE_NAME},TrainingInputMode=File" \
+  --input-data-config "ChannelName=${MODEL_NAME},DataSource={S3DataSource={S3DataType=S3Prefix,S3Uri=${S3_AUDIO_PATH},S3DataDistributionType=FullyReplicated}}" \
+  --output-data-config "S3OutputPath=${S3_MODEL_PATH}" \
+  --resource-config "InstanceType=${INSTANCE_TYPE},InstanceCount=1,VolumeSizeInGB=${VOLUME_SIZE_IN_GB}" \
+  --stopping-condition "MaxRuntimeInSeconds=${MAX_RUNTIME_IN_SECONDS}"
+
+# トレーニングジョブの完了を待機
+aws sagemaker wait training-job-completed-or-stopped \
+  --training-job-name "${TRAINING_JOB_NAME}"
 ```
-model_assets
-├── your_model
-│   ├── config.json
-│   ├── your_model_file1.safetensors
-│   ├── your_model_file2.safetensors
-│   ├── ...
-│   └── style_vectors.npy
-└── another_model
-    ├── ...
+
+学習が完了すると、`${S3_MODEL_PATH}/${TRAINING_JOB_NAME}/output/model.tar.gz` にモデルファイルが保存される。
+
+## 推論
+
+以下の構造でtar.gz圧縮したモデルファイルをS3バケットに配置する。
+
 ```
-このように、推論には`config.json`と`*.safetensors`と`style_vectors.npy`が必要です。モデルを共有する場合は、この3つのファイルを共有してください。
-
-このうち`style_vectors.npy`はスタイルを制御するために必要なファイルで、学習の時にデフォルトで平均スタイル「Neutral」が生成されます。
-複数スタイルを使ってより詳しくスタイルを制御したい方は、下の「スタイルの生成」を参照してください（平均スタイルのみでも、学習データが感情豊かならば十分感情豊かな音声が生成されます）。
-
-### 学習
-
-学習には2-14秒程度の音声ファイルが複数と、それらの書き起こしデータが必要です。
-
-- 既存コーパスなどですでに分割された音声ファイルと書き起こしデータがある場合はそのまま（必要に応じて書き起こしファイルを修正して）使えます。下の「学習WebUI」を参照してください。
-- そうでない場合、（長さは問わない）音声ファイルのみがあれば、そこから学習にすぐに使えるようにデータセットを作るためのツールを同梱しています。
-
-#### データセット作り
-
-- `Dataset.bat`をダブルクリックか`python webui_dataset.py`すると、音声ファイルからデータセットを作るためのWebUIが起動します（音声ファイルを適切な長さにスライスし、その後に文字の書き起こしを自動で行います）。
-- 指示に従った後、閉じて下の「学習WebUI」でそのまま学習を行うことができます。
-
-注意: データセットの手動修正やノイズ除去等、細かい修正を行いたい場合は[Aivis](https://github.com/tsukumijima/Aivis)や、そのデータセット部分のWindows対応版 [Aivis Dataset](https://github.com/litagin02/Aivis-Dataset) を使うといいかもしれません。ですがファイル数が多い場合などは、このツールで簡易的に切り出してデータセットを作るだけでも十分という気もしています。
-
-データセットがどのようなものがいいかは各自試行錯誤中してください。
-
-#### 学習WebUI
-
-- `Train.bat`をダブルクリックか`python webui_train.py`するとWebUIが起動するので指示に従ってください。
-
-### スタイルの生成
-
-- デフォルトスタイル「Neutral」以外のスタイルを使いたい人向けです。
-- `Style.bat`をダブルクリックか`python webui_style_vectors.py`するとWebUIが起動します。
-- 学習とは独立しているので、学習中でもできるし、学習が終わっても何度もやりなおせます（前処理は終わらせている必要があります）。
-- スタイルについての仕様の詳細は[clustering.ipynb](clustering.ipynb)を参照してください。
-
-### API Server
-
-構築した環境下で`python server_fastapi.py`するとAPIサーバーが起動します。
-API仕様は起動後に`/docs`にて確認ください。
-
-- 入力文字数はデフォルトで100文字が上限となっています。これは`config.yml`の`server.limit`で変更できます。
-- デフォルトではCORS設定を全てのドメインで許可しています。できる限り、`config.yml`の`server.origins`の値を変更し、信頼できるドメインに制限ください(キーを消せばCORS設定を無効にできます)。
-
-### マージ
-
-2つのモデルを、「声質」「声の高さ」「感情表現」「テンポ」の4点で混ぜ合わせて、新しいモデルを作ることが出来ます。
-`Merge.bat`をダブルクリックか`python webui_merge.py`するとWebUIが起動します。
-
-### 自然性評価
-
-学習結果のうちどのステップ数がいいかの「一つの」指標として、[SpeechMOS](https://github.com/tarepan/SpeechMOS) を使うスクリプトを用意しています:
-```bash
-python speech_mos.py -m <model_name>
+model.tar.gz
+└── model_name
+    ├── config.json
+    ├── model_name.safetensors
+    └── style_vectors.npy
 ```
-ステップごとの自然性評価が表示され、`mos_results`フォルダの`mos_{model_name}.csv`と`mos_{model_name}.png`に結果が保存される。読み上げさせたい文章を変えたかったら中のファイルを弄って各自調整してください。またあくまでアクセントや感情表現や抑揚を全く考えない基準での評価で、目安のひとつなので、実際に読み上げさせて選別するのが一番だと思います。
 
-## Bert-VITS2との関係
+以下のコマンドを実行する。
 
-基本的にはBert-VITS2のモデル構造を少し改造しただけです。[旧事前学習モデル](https://huggingface.co/litagin/Style-Bert-VITS2-1.0-base)も[JP-Extraの事前学習モデル](https://huggingface.co/litagin/Style-Bert-VITS2-2.0-base-JP-Extra)も、実質Bert-VITS2 v2.1 or JP-Extraと同じものを使用しています（不要な重みを削ってsafetensorsに変換したもの）。
+```sh
+# 推論用モデル名
+MODEL_NAME=Style-Bert-VITS2-Model
 
-具体的には以下の点が異なります。
+# エンドポイント設定名
+ENDPOINT_CONFIG_NAME=Style-Bert-VITS2-EndpointConfig
 
-- [EasyBertVits2](https://github.com/Zuntan03/EasyBertVits2)のように、PythonやGitを知らない人でも簡単に使える。
-- 感情埋め込みのモデルを変更（256次元の[wespeaker-voxceleb-resnet34-LM](https://huggingface.co/pyannote/wespeaker-voxceleb-resnet34-LM)へ、感情埋め込みというよりは話者識別のための埋め込み）
-- 感情埋め込みもベクトル量子化を取り払い、単なる全結合層に。
-- スタイルベクトルファイル`style_vectors.npy`を作ることで、そのスタイルを使って効果の強さも連続的に指定しつつ音声を生成することができる。
-- 各種WebUIを作成
-- bf16での学習のサポート
-- safetensors形式のサポート、デフォルトでsafetensorsを使用するように
-- その他軽微なbugfixやリファクタリング
+# エンドポイント名
+ENDPOINT_NAME=Style-Bert-VITS2-Endpoint
 
-## TODO
-- [x] デフォルトのJVNVモデルにJP-Extra版のものを追加
-- [x] LinuxやWSL等、Windowsの通常環境以外でのサポート ← おそらく問題ないとの報告あり
-- [x] 複数話者学習での音声合成対応（学習は現在でも可能）
-- [x] `server_fastapi.py`の対応、とくにAPIで使えるようになると嬉しい人が増えるのかもしれない
-- [x] モデルのマージで声音と感情表現を混ぜる機能の実装
-- [ ] 英語等多言語対応？
+# 事前準備のDockerイメージ名
+IMAGE_NAME=<Dockerイメージ名>
 
-## References
-In addition to the original reference (written below), I used the following repositories:
-- [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2)
-- [EasyBertVits2](https://github.com/Zuntan03/EasyBertVits2)
+# 実行ロールのARN
+EXECUTION_ROLE_ARN=<実行ロールのARN>
 
-[The pretrained model](https://huggingface.co/litagin/Style-Bert-VITS2-1.0-base) and [JP-Extra version](https://huggingface.co/litagin/Style-Bert-VITS2-2.0-base-JP-Extra) is essentially taken from [the original base model of Bert-VITS2 v2.1](https://huggingface.co/Garydesu/bert-vits2_base_model-2.1) and [JP-Extra pretrained model of Bert-VITS2](https://huggingface.co/Stardust-minus/Bert-VITS2-Japanese-Extra), so all the credits go to the original author ([Fish Audio](https://github.com/fishaudio)):
+# モデルファイルを配置したS3パス
+S3_MODEL_PATH=s3://<S3バケット名>/<モデルファイルまでのパス>
 
+# インスタンスタイプ
+INSTANCE_TYPE=ml.g4dn.xlarge
 
-Below is the original README.md.
----
+# 推論用モデルを作成
+aws sagemaker create-model \
+  --model-name "${MODEL_NAME}" \
+  --primary-container "Image=${IMAGE_NAME},ModelDataUrl=${S3_MODEL_PATH}" \
+  --execution-role-arn "${EXECUTION_ROLE_ARN}"
 
-<div align="center">
+# エンドポイント設定を作成
+aws sagemaker create-endpoint-config \
+  --endpoint-config-name "${ENDPOINT_CONFIG_NAME}" \
+  --production-variants "VariantName=AllTraffic,ModelName=${MODEL_NAME},InitialInstanceCount=1,InstanceType=${INSTANCE_TYPE}"
 
-<img alt="LOGO" src="https://cdn.jsdelivr.net/gh/fishaudio/fish-diffusion@main/images/logo_512x512.png" width="256" height="256" />
+# エンドポイントを作成
+aws sagemaker create-endpoint \
+  --endpoint-name "${ENDPOINT_NAME}" \
+  --endpoint-config-name "${ENDPOINT_CONFIG_NAME}"
 
-# Bert-VITS2
+# エンドポイントの作成を待機
+aws sagemaker wait endpoint-in-service \
+  --endpoint-name "${ENDPOINT_NAME}"
+```
 
-VITS2 Backbone with multilingual bert
+エンドポイントの作成が完了すると、SageMakerの[InvokeEndpoint API](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_runtime_InvokeEndpoint.html)で音声合成が可能となる。
 
-For quick guide, please refer to `webui_preprocess.py`.
+以下はAWS CLIで実行する例。`${AUDIO_FILE_NAME}` に結果が保存される。
 
-简易教程请参见 `webui_preprocess.py`。
+```sh
+# セリフ
+TEXT=こんにちは、初めまして。あなたの名前はなんていうの？
 
-## 请注意，本项目核心思路来源于[anyvoiceai/MassTTS](https://github.com/anyvoiceai/MassTTS) 一个非常好的tts项目
-## MassTTS的演示demo为[ai版峰哥锐评峰哥本人,并找回了在金三角失落的腰子](https://www.bilibili.com/video/BV1w24y1c7z9)
+# 保存ファイル名
+AUDIO_FILE_NAME=test.wav
 
-[//]: # (## 本项目与[PlayVoice/vits_chinese]&#40;https://github.com/PlayVoice/vits_chinese&#41; 没有任何关系)
-
-[//]: # ()
-[//]: # (本仓库来源于之前朋友分享了ai峰哥的视频，本人被其中的效果惊艳，在自己尝试MassTTS以后发现fs在音质方面与vits有一定差距，并且training的pipeline比vits更复杂，因此按照其思路将bert)
-
-## 成熟的旅行者/开拓者/舰长/博士/sensei/猎魔人/喵喵露/V应当参阅代码自己学习如何训练。
-
-### 严禁将此项目用于一切违反《中华人民共和国宪法》，《中华人民共和国刑法》，《中华人民共和国治安管理处罚法》和《中华人民共和国民法典》之用途。
-### 严禁用于任何政治相关用途。
-#### Video:https://www.bilibili.com/video/BV1hp4y1K78E
-#### Demo:https://www.bilibili.com/video/BV1TF411k78w
-#### QQ Group：815818430
-## References
-+ [anyvoiceai/MassTTS](https://github.com/anyvoiceai/MassTTS)
-+ [jaywalnut310/vits](https://github.com/jaywalnut310/vits)
-+ [p0p4k/vits2_pytorch](https://github.com/p0p4k/vits2_pytorch)
-+ [svc-develop-team/so-vits-svc](https://github.com/svc-develop-team/so-vits-svc)
-+ [PaddlePaddle/PaddleSpeech](https://github.com/PaddlePaddle/PaddleSpeech)
-+ [emotional-vits](https://github.com/innnky/emotional-vits)
-+ [fish-speech](https://github.com/fishaudio/fish-speech)
-+ [Bert-VITS2-UI](https://github.com/jiangyuxiaoxiao/Bert-VITS2-UI)
-## 感谢所有贡献者作出的努力
-<a href="https://github.com/fishaudio/Bert-VITS2/graphs/contributors" target="_blank">
-  <img src="https://contrib.rocks/image?repo=fishaudio/Bert-VITS2"/>
-</a>
-
-[//]: # (# 本项目所有代码引用均已写明，bert部分代码思路来源于[AI峰哥]&#40;https://www.bilibili.com/video/BV1w24y1c7z9&#41;，与[vits_chinese]&#40;https://github.com/PlayVoice/vits_chinese&#41;无任何关系。欢迎各位查阅代码。同时，我们也对该开发者的[碰瓷，乃至开盒开发者的行为]&#40;https://www.bilibili.com/read/cv27101514/&#41;表示强烈谴责。)
+# エンドポイントを呼び出す
+aws sagemaker-runtime invoke-endpoint \
+  --cli-binary-format raw-in-base64-out \
+  --endpoint-name "${ENDPOINT_NAME}" \
+  --body "{\"text\":\"${TEXT}\"}" \
+  "${AUDIO_FILE_NAME}"
+```
