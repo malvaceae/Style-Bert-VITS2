@@ -2,6 +2,9 @@
 
 [Style-Bert-VITS2](https://github.com/litagin02/Style-Bert-VITS2)を用いたモデルのトレーニングと推論を[Amazon SageMaker](https://aws.amazon.com/sagemaker/)で実行できるようにしたもの。
 
+このリポジトリは、[Style-Bert-VITS2](https://github.com/litagin02/Style-Bert-VITS2)、[Bert-VITS2](https://github.com/fishaudio/Bert-VITS2) v2.1、および Japanese-Extra をベースにしています。  
+オリジナルの作成者に感謝します。
+
 ## 要件
 
 以下がインストールされていること。
