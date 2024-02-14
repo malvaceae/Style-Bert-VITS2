@@ -3,7 +3,7 @@
 [Style-Bert-VITS2](https://github.com/litagin02/Style-Bert-VITS2)を用いたモデルのトレーニングと推論を[Amazon SageMaker](https://aws.amazon.com/sagemaker/)で実行できるようにしたもの。
 
 このリポジトリは、[Style-Bert-VITS2](https://github.com/litagin02/Style-Bert-VITS2)、[Bert-VITS2](https://github.com/fishaudio/Bert-VITS2) v2.1、および Japanese-Extra をベースにしています。  
-オリジナルの作成者に感謝します。
+オリジナルの作成者様に感謝します。
 
 ## 要件
 
@@ -67,11 +67,11 @@ IMAGE_NAME=<Dockerイメージ名>
 # 実行ロールのARN
 EXECUTION_ROLE_ARN=<実行ロールのARN>
 
-# 音声ファイルを配置したS3パス
-S3_AUDIO_PATH=s3://<S3バケット名>/<音声ファイルまでのプレフィックス>
+# 音声ファイルまでのプレフィックスを指すS3 URI (音声ファイルが inputs/*.wav に配置されている場合、S3 URIは s3://<S3バケット名>/inputs となる)
+S3_INPUT_URI=s3://<S3バケット名>/<音声ファイルまでのプレフィックス>
 
-# モデルファイルを格納するS3パス
-S3_MODEL_PATH=s3://<S3バケット名>/artifacts
+# 成果物を格納するパスを指すS3 URI
+S3_OUTPUT_URI=s3://<S3バケット名>/artifacts
 
 # インスタンスタイプ
 INSTANCE_TYPE=ml.g4dn.xlarge
@@ -106,8 +106,8 @@ aws sagemaker create-training-job \
   --hyper-parameters "use_jp_extra=${USE_JP_EXTRA},batch_size=${BATCH_SIZE},epochs=${EPOCHS},save_every_steps=${SAVE_EVERY_STEPS},normalize=${NORMALIZE},trim=${TRIM}" \
   --role-arn "${EXECUTION_ROLE_ARN}" \
   --algorithm-specification "TrainingImage=${IMAGE_NAME},TrainingInputMode=File" \
-  --input-data-config "ChannelName=${MODEL_NAME},DataSource={S3DataSource={S3DataType=S3Prefix,S3Uri=${S3_AUDIO_PATH},S3DataDistributionType=FullyReplicated}}" \
-  --output-data-config "S3OutputPath=${S3_MODEL_PATH}" \
+  --input-data-config "ChannelName=${MODEL_NAME},DataSource={S3DataSource={S3DataType=S3Prefix,S3Uri=${S3_INPUT_URI},S3DataDistributionType=FullyReplicated}}" \
+  --output-data-config "S3OutputPath=${S3_OUTPUT_URI}" \
   --resource-config "InstanceType=${INSTANCE_TYPE},InstanceCount=1,VolumeSizeInGB=${VOLUME_SIZE_IN_GB}" \
   --stopping-condition "MaxRuntimeInSeconds=${MAX_RUNTIME_IN_SECONDS}"
 
@@ -116,7 +116,7 @@ aws sagemaker wait training-job-completed-or-stopped \
   --training-job-name "${TRAINING_JOB_NAME}"
 ```
 
-学習が完了すると、`${S3_MODEL_PATH}/${TRAINING_JOB_NAME}/output/model.tar.gz` にモデルファイルが保存される。
+学習が完了すると、`${S3_OUTPUT_URI}/${TRAINING_JOB_NAME}/output/model.tar.gz` にモデルファイルが保存される。
 
 ## 推論
 
@@ -133,11 +133,11 @@ model.tar.gz
 以下のコマンドを実行する。
 
 ```sh
-# 推論用モデル名
+# モデル名
 MODEL_NAME=Style-Bert-VITS2-Model
 
 # エンドポイント設定名
-ENDPOINT_CONFIG_NAME=Style-Bert-VITS2-EndpointConfig
+ENDPOINT_CONFIG_NAME=Style-Bert-VITS2-Endpoint-Config
 
 # エンドポイント名
 ENDPOINT_NAME=Style-Bert-VITS2-Endpoint
@@ -148,16 +148,16 @@ IMAGE_NAME=<Dockerイメージ名>
 # 実行ロールのARN
 EXECUTION_ROLE_ARN=<実行ロールのARN>
 
-# モデルファイルを配置したS3パス
-S3_MODEL_PATH=s3://<S3バケット名>/<モデルファイルまでのパス>
+# モデルファイルのパスを指すS3 URI
+S3_MODEL_URI=s3://<S3バケット名>/<モデルファイルのパス>
 
 # インスタンスタイプ
 INSTANCE_TYPE=ml.g4dn.xlarge
 
-# 推論用モデルを作成
+# モデルを作成
 aws sagemaker create-model \
   --model-name "${MODEL_NAME}" \
-  --primary-container "Image=${IMAGE_NAME},ModelDataUrl=${S3_MODEL_PATH}" \
+  --primary-container "Image=${IMAGE_NAME},ModelDataUrl=${S3_MODEL_URI}" \
   --execution-role-arn "${EXECUTION_ROLE_ARN}"
 
 # エンドポイント設定を作成
@@ -191,5 +191,7 @@ aws sagemaker-runtime invoke-endpoint \
   --cli-binary-format raw-in-base64-out \
   --endpoint-name "${ENDPOINT_NAME}" \
   --body "{\"text\":\"${TEXT}\"}" \
+  --content-type application/json \
+  --accept audio/wav \
   "${AUDIO_FILE_NAME}"
 ```
