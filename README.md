@@ -19,24 +19,26 @@
 トレーニングと推論に用いるDockerイメージをECRリポジトリにプッシュする。
 
 ```sh
-# ECRリポジトリ名
+# リポジトリ名
 REPOSITORY_NAME=style-bert-vits2
 
 # アカウントID
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# リージョン (デフォルトはバージニア北部)
-AWS_REGION=$(aws configure get region)
-AWS_REGION=${AWS_REGION:-us-east-1}
+# リージョン
+AWS_REGION="${AWS_DEFAULT_REGION:-$(aws configure get region)}"
+
+# ECRレジストリ
+ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
 # Dockerイメージ名
-IMAGE_NAME="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPOSITORY_NAME}:latest"
+IMAGE_NAME="${ECR_REGISTRY}/${REPOSITORY_NAME}:latest"
 
 # ECRリポジトリを作成
-aws ecr create-repository --region "${AWS_REGION}" --repository-name "${REPOSITORY_NAME}"
+aws ecr create-repository --repository-name "${REPOSITORY_NAME}"
 
 # ECRレジストリにログイン
-aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
 # Dockerイメージをビルド (AMD64用イメージとしてビルドする必要あり)
 docker build --platform linux/amd64 -t "${IMAGE_NAME}" .
@@ -134,13 +136,13 @@ model.tar.gz
 
 ```sh
 # モデル名
-MODEL_NAME=Style-Bert-VITS2-Model
+MODEL_NAME=style-bert-vits2-model-$(date '+%Y-%m-%d-%H-%M-%S')
 
 # エンドポイント設定名
-ENDPOINT_CONFIG_NAME=Style-Bert-VITS2-Endpoint-Config
+ENDPOINT_CONFIG_NAME=style-bert-vits2-endpoint-config-$(date '+%Y-%m-%d-%H-%M-%S')
 
 # エンドポイント名
-ENDPOINT_NAME=Style-Bert-VITS2-Endpoint
+ENDPOINT_NAME=style-bert-vits2-endpoint-$(date '+%Y-%m-%d-%H-%M-%S')
 
 # 事前準備のDockerイメージ名
 IMAGE_NAME=<Dockerイメージ名>
