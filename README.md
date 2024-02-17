@@ -54,14 +54,21 @@ https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html
 
 ## トレーニング
 
-学習に用いる音声ファイルをS3バケットに配置し、以下のコマンドを実行する。
+学習に用いる音声ファイルを以下のような構造でS3バケットに配置する。
+
+```
+inputs
+└── model_name
+    ├── ****.wav
+    ├── ****.wav
+    ├── ...
+```
+
+以下のコマンドを実行する。
 
 ```sh
 # トレーニングジョブ名
 TRAINING_JOB_NAME=style-bert-vits2-$(date '+%Y-%m-%d-%H-%M-%S')
-
-# モデル名
-MODEL_NAME=<モデル名>
 
 # 事前準備のDockerイメージ名
 IMAGE_NAME=<Dockerイメージ名>
@@ -69,11 +76,11 @@ IMAGE_NAME=<Dockerイメージ名>
 # 実行ロールのARN
 EXECUTION_ROLE_ARN=<実行ロールのARN>
 
-# 音声ファイルまでのプレフィックスを指すS3 URI (音声ファイルが inputs/*.wav に配置されている場合、S3 URIは s3://<S3バケット名>/inputs となる)
-S3_INPUT_URI=s3://<S3バケット名>/<音声ファイルまでのプレフィックス>
+# 音声ファイルを配置したパスを指すS3 URI
+S3_INPUT_URI=s3://<S3バケット名>/inputs
 
 # 成果物を格納するパスを指すS3 URI
-S3_OUTPUT_URI=s3://<S3バケット名>/artifacts
+S3_OUTPUT_URI=s3://<S3バケット名>/outputs
 
 # インスタンスタイプ
 INSTANCE_TYPE=ml.g4dn.xlarge
@@ -108,7 +115,7 @@ aws sagemaker create-training-job \
   --hyper-parameters "use_jp_extra=${USE_JP_EXTRA},batch_size=${BATCH_SIZE},epochs=${EPOCHS},save_every_steps=${SAVE_EVERY_STEPS},normalize=${NORMALIZE},trim=${TRIM}" \
   --role-arn "${EXECUTION_ROLE_ARN}" \
   --algorithm-specification "TrainingImage=${IMAGE_NAME},TrainingInputMode=File" \
-  --input-data-config "ChannelName=${MODEL_NAME},DataSource={S3DataSource={S3DataType=S3Prefix,S3Uri=${S3_INPUT_URI},S3DataDistributionType=FullyReplicated}}" \
+  --input-data-config "ChannelName=train,DataSource={S3DataSource={S3DataType=S3Prefix,S3Uri=${S3_INPUT_URI},S3DataDistributionType=FullyReplicated}}" \
   --output-data-config "S3OutputPath=${S3_OUTPUT_URI}" \
   --resource-config "InstanceType=${INSTANCE_TYPE},InstanceCount=1,VolumeSizeInGB=${VOLUME_SIZE_IN_GB}" \
   --stopping-condition "MaxRuntimeInSeconds=${MAX_RUNTIME_IN_SECONDS}"
