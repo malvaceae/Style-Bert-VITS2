@@ -31,7 +31,7 @@ if __name__ == "__main__":
     with Path(args.input_dir, "config", "hyperparameters.json").open() as f:
         params = json.load(f)
 
-    def get_param(key: str, default: Any):
+    def get_param(key: str, default: Any) -> Any:
         param = params.get(key, str(default))
 
         match default:
