@@ -4,6 +4,7 @@ import subprocess
 import sys
 from distutils.util import strtobool
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -12,25 +13,45 @@ from webui_train import (
     preprocess_all,
 )
 
+DEFAULT_PARAMS = {
+    "use_jp_extra": True,
+    "batch_size": 4,
+    "epochs": 100,
+    "save_every_steps": 1000,
+    "normalize": False,
+    "trim": False,
+}
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", required=True)
     parser.add_argument("--model_dir", required=True)
     args = parser.parse_args()
 
-    with Path(args.input_dir, "config/hyperparameters.json").open() as f:
-        hyperparameters = json.load(f)
+    with Path(args.input_dir, "config", "hyperparameters.json").open() as f:
+        params = json.load(f)
 
-    use_jp_extra, batch_size, epochs, save_every_steps, normalize, trim = (
-        bool(strtobool(hyperparameters.get("use_jp_extra", "True"))),
-        int(hyperparameters.get("batch_size", "4")),
-        int(hyperparameters.get("epochs", "100")),
-        int(hyperparameters.get("save_every_steps", "1000")),
-        bool(strtobool(hyperparameters.get("normalize", "False"))),
-        bool(strtobool(hyperparameters.get("trim", "False"))),
-    )
+    def get_param(key: str, default: Any):
+        param = params.get(key, str(default))
 
-    for model in Path(args.input_dir, "data/train").iterdir():
+        match default:
+            case bool():
+                return bool(strtobool(param))
+            case int():
+                return int(param)
+            case _:
+                return str(param)
+
+    (
+        use_jp_extra,
+        batch_size,
+        epochs,
+        save_every_steps,
+        normalize,
+        trim,
+    ) = [get_param(key, default) for key, default in DEFAULT_PARAMS.items()]
+
+    for model in Path(args.input_dir, "data", "train").iterdir():
         (
             dataset_path,
             lbl_path,

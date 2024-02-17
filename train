@@ -22,14 +22,11 @@ if __name__ == "__main__":
             check=True,
         )
 
-        with Path("configs/paths.yml").open(mode="w") as f:
-            yaml.dump(
-                {
-                    "dataset_root": "Data",
-                    "assets_root": MODEL_DIR,
-                },
-                f,
-            )
+        with Path("configs", "paths.yml").open() as f:
+            paths = yaml.safe_load(f)
+
+        with Path("configs", "paths.yml").open(mode="w") as f:
+            yaml.dump(paths | {"assets_root": MODEL_DIR}, f)
 
         subprocess.run(
             [
