@@ -19,8 +19,8 @@
 トレーニングと推論に用いるDockerイメージをECRリポジトリにプッシュする。
 
 ```sh
-# リポジトリ名
-REPOSITORY_NAME=style-bert-vits2
+# ECRリポジトリ
+ECR_REPOSITORY=style-bert-vits2
 
 # アカウントID
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -32,10 +32,10 @@ AWS_REGION="${AWS_DEFAULT_REGION:-$(aws configure get region)}"
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
 # Dockerイメージ名
-IMAGE_NAME="${ECR_REGISTRY}/${REPOSITORY_NAME}:latest"
+IMAGE_NAME="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
 
 # ECRリポジトリを作成
-aws ecr create-repository --repository-name "${REPOSITORY_NAME}"
+aws ecr create-repository --repository-name "${ECR_REPOSITORY}"
 
 # ECRレジストリにログイン
 aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
@@ -85,7 +85,7 @@ S3_OUTPUT_URI=s3://<S3バケット名>/outputs
 # インスタンスタイプ
 INSTANCE_TYPE=ml.g4dn.xlarge
 
-# ストレージサイズ (GB)
+# 追加のストレージボリューム (GB)
 VOLUME_SIZE_IN_GB=30
 
 # 最大実行時間 (秒)
@@ -112,12 +112,26 @@ TRIM=False
 # トレーニングジョブを実行
 aws sagemaker create-training-job \
   --training-job-name "${TRAINING_JOB_NAME}" \
-  --hyper-parameters "use_jp_extra=${USE_JP_EXTRA},batch_size=${BATCH_SIZE},epochs=${EPOCHS},save_every_steps=${SAVE_EVERY_STEPS},normalize=${NORMALIZE},trim=${TRIM}" \
+  --hyper-parameters "use_jp_extra=${USE_JP_EXTRA},
+    batch_size=${BATCH_SIZE},
+    epochs=${EPOCHS},
+    save_every_steps=${SAVE_EVERY_STEPS},
+    normalize=${NORMALIZE},
+    trim=${TRIM}" \
   --role-arn "${EXECUTION_ROLE_ARN}" \
   --algorithm-specification "TrainingImage=${IMAGE_NAME},TrainingInputMode=File" \
-  --input-data-config "ChannelName=train,DataSource={S3DataSource={S3DataType=S3Prefix,S3Uri=${S3_INPUT_URI},S3DataDistributionType=FullyReplicated}}" \
+  --input-data-config "ChannelName=train,
+    DataSource={
+      S3DataSource={
+        S3DataType=S3Prefix,
+        S3Uri=${S3_INPUT_URI},
+        S3DataDistributionType=FullyReplicated,
+      },
+    }" \
   --output-data-config "S3OutputPath=${S3_OUTPUT_URI}" \
-  --resource-config "InstanceType=${INSTANCE_TYPE},InstanceCount=1,VolumeSizeInGB=${VOLUME_SIZE_IN_GB}" \
+  --resource-config "InstanceType=${INSTANCE_TYPE},
+    InstanceCount=1,
+    VolumeSizeInGB=${VOLUME_SIZE_IN_GB}" \
   --stopping-condition "MaxRuntimeInSeconds=${MAX_RUNTIME_IN_SECONDS}"
 
 # トレーニングジョブの完了を待機
@@ -172,7 +186,10 @@ aws sagemaker create-model \
 # エンドポイント設定を作成
 aws sagemaker create-endpoint-config \
   --endpoint-config-name "${ENDPOINT_CONFIG_NAME}" \
-  --production-variants "VariantName=AllTraffic,ModelName=${MODEL_NAME},InitialInstanceCount=1,InstanceType=${INSTANCE_TYPE}"
+  --production-variants "VariantName=AllTraffic,
+    ModelName=${MODEL_NAME},
+    InitialInstanceCount=1,
+    InstanceType=${INSTANCE_TYPE}"
 
 # エンドポイントを作成
 aws sagemaker create-endpoint \
