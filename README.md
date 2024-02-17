@@ -70,7 +70,7 @@ inputs
 # トレーニングジョブ名
 TRAINING_JOB_NAME=style-bert-vits2-$(date '+%Y-%m-%d-%H-%M-%S')
 
-# 事前準備のDockerイメージ名
+# 事前準備したDockerイメージ名
 IMAGE_NAME=<Dockerイメージ名>
 
 # 実行ロールのARN
@@ -165,7 +165,7 @@ ENDPOINT_CONFIG_NAME=style-bert-vits2-endpoint-config-$(date '+%Y-%m-%d-%H-%M-%S
 # エンドポイント名
 ENDPOINT_NAME=style-bert-vits2-endpoint-$(date '+%Y-%m-%d-%H-%M-%S')
 
-# 事前準備のDockerイメージ名
+# 事前準備したDockerイメージ名
 IMAGE_NAME=<Dockerイメージ名>
 
 # 実行ロールのARN
@@ -201,7 +201,7 @@ aws sagemaker wait endpoint-in-service \
   --endpoint-name "${ENDPOINT_NAME}"
 ```
 
-エンドポイントの作成が完了すると、SageMakerの[InvokeEndpoint API](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_runtime_InvokeEndpoint.html)で音声合成が可能となる。
+エンドポイントの作成が完了すると、SageMakerの [InvokeEndpoint API](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_runtime_InvokeEndpoint.html) で音声合成が可能となる。
 
 以下はAWS CLIで実行する例。`${AUDIO_FILE_NAME}` に結果が保存される。
 
