@@ -13,8 +13,8 @@ if __name__ == "__main__":
     subprocess.run(
         [
             sys.executable,
-            "server_fastapi.py",
-            "--dir",
+            "serve.py",
+            "--model_dir",
             MODEL_DIR,
         ],
         check=True,

@@ -182,11 +182,11 @@ class ModelHolder:
         self.model_files_dict = {}
         self.model_names = []
         self.current_model = None
-        model_dirs = sorted([
+        model_dirs = [
             d
             for d in os.listdir(self.root_dir)
             if os.path.isdir(os.path.join(self.root_dir, d))
-        ])
+        ]
         for model_name in model_dirs:
             model_dir = os.path.join(self.root_dir, model_name)
             model_files = [
