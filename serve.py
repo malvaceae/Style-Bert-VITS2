@@ -32,6 +32,9 @@ from common.constants import (
 from common.log import logger
 from common.tts_model import Model
 from config import config
+from text.chinese_bert import get_bert_feature as zh_bert
+from text.english_bert_mock import get_bert_feature as en_bert
+from text.japanese_bert import get_bert_feature as jp_bert
 
 
 class WavResponse(Response):
@@ -93,6 +96,11 @@ if __name__ == "__main__":
 
     for model in models.values():
         model.load_net_g()
+
+    # preload bert models
+    zh_bert("", [1, 1], device)
+    en_bert("", [1, 1], device)
+    jp_bert("", [1, 1], device)
 
     app = FastAPI(openapi_url=None)
 
